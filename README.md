@@ -14,6 +14,7 @@ O dashboard publicado está em <https://modern-data-stack-esap3ujuz6qen2mjso4prh
 | Peça | Estado |
 |---|---|
 | `streamlit_app.py` | Dashboard no ar. Lê o InfoDengue na hora. Não usa o DuckDB nem o dbt. |
+| Mapa | OpenStreetMap, sem chave. O fundo antigo da Carto passou a exigir API key e cobria o Brasil com "API KEY REQUIRED". Vale para o dashboard publicado e para o local. |
 | `src/ingestion` + DuckDB + dbt | Pipeline local. O banco **não vai no Git**. É preciso coletar e transformar antes da API e do dashboard local. |
 | `src/dashboard/app.py` | Dashboard local em cima do mart `mart_arboviroses`. |
 | FastAPI | Seis rotas sobre o mart. Consultas parametrizadas. |
