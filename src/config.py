@@ -32,7 +32,16 @@ class Settings(BaseSettings):
     ollama_base_url: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="llama3")
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # Groq (somente via ambiente; nunca commitar a chave)
+    groq_api_key: str = Field(default="")
+
+    # Kafka
+    kafka_bootstrap_servers: str = Field(default="localhost:9092")
+
+    # CORS da API. Origens separadas por vírgula. "*" só para laboratório local.
+    cors_origins: str = Field(default="*")
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

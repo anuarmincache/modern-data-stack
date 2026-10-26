@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stg_casos
+    columns:
+      - name: municipio
+        data_tests: [not_null]
+      - name: doenca
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["dengue", "chikungunya", "zika"]
+      - name: semana_epidemiologica
+        data_tests: [not_null]
+      - name: nivel_alerta
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4]
+              quote: false
+
+  - name: mart_arboviroses
+    columns:
+      - name: municipio
+        data_tests: [not_null]
+      - name: doenca
+        data_tests:
+          - accepted_values:
+              values: ["dengue", "chikungunya", "zika"]
+      - name: casos_estimados
+        data_tests: [not_null]
+      - name: casos_lag1
+        data_tests: [not_null]

@@ -1,15 +1,13 @@
-Welcome to your new dbt project!
+# dbt — arboviroses
 
-### Using the starter project
+Modelos em cima do DuckDB local (`casos_raw` e `clima_raw`).
 
-Try running the following commands:
-- dbt run
-- dbt test
+O perfil está em `profiles.yml`. O caminho do banco vem de `DUCKDB_PATH` ou, por padrão, de `../../data/processed/arboviroses.duckdb` em relação a este diretório.
 
+```bash
+cd infra/dbt
+uv run dbt run --profiles-dir .
+uv run dbt test --profiles-dir .
+```
 
-### Resources:
-- Learn more about dbt [in the docs](https://docs.getdbt.com/docs/introduction)
-- Check out [Discourse](https://discourse.getdbt.com/) for commonly asked questions and answers
-- Join the [chat](https://community.getdbt.com/) on Slack for live discussions and support
-- Find [dbt events](https://events.getdbt.com) near you
-- Check out [the blog](https://blog.getdbt.com/) for the latest news on dbt's development and best practices
+A ingestão precisa ter rodado antes. Sem as tabelas raw, o `dbt run` falha.

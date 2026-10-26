@@ -1,6 +1,5 @@
 import duckdb
 import pandas as pd
-from pathlib import Path
 from loguru import logger
 from src.config import settings
 
@@ -63,17 +62,34 @@ def inserir_casos(registros: list[dict]) -> int:
             df[col] = None
 
     df = df[colunas]
+    df = df.drop_duplicates(subset=["municipio", "doenca", "SE"], keep="last")
 
     con = get_connection()
-    con.execute("""
-        INSERT INTO casos_raw
-            (municipio, geocodigo, doenca, data_iniSE, SE, casos_est, casos, nivel)
-        SELECT * FROM df
-    """)
-    total = con.execute("SELECT COUNT(*) FROM casos_raw").fetchone()[0]
-    con.close()
+    try:
+        con.execute("BEGIN TRANSACTION")
+        con.execute("""
+            DELETE FROM casos_raw
+            WHERE EXISTS (
+                SELECT 1 FROM df
+                WHERE df.municipio = casos_raw.municipio
+                  AND df.doenca = casos_raw.doenca
+                  AND df.SE = casos_raw.SE
+            )
+        """)
+        con.execute("""
+            INSERT INTO casos_raw
+                (municipio, geocodigo, doenca, data_iniSE, SE, casos_est, casos, nivel)
+            SELECT * FROM df
+        """)
+        total = con.execute("SELECT COUNT(*) FROM casos_raw").fetchone()[0]
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    finally:
+        con.close()
 
-    logger.success(f"{len(df)} registros de casos inseridos — total na tabela: {total}")
+    logger.success(f"{len(df)} registros de casos gravados — total na tabela: {total}")
     return len(df)
 
 
@@ -95,24 +111,42 @@ def inserir_clima(registros: list[dict]) -> int:
             df[col] = None
 
     df = df[colunas]
+    df = df.drop_duplicates(subset=["municipio", "data"], keep="last")
 
     con = get_connection()
-    con.execute("""
-        INSERT INTO clima_raw
-            (municipio, data, temperature_2m_max, temperature_2m_min,
-             temperature_2m_mean, precipitation_sum,
-             relative_humidity_2m_max, relative_humidity_2m_min)
-        SELECT * FROM df
-    """)
-    total = con.execute("SELECT COUNT(*) FROM clima_raw").fetchone()[0]
-    con.close()
+    try:
+        con.execute("BEGIN TRANSACTION")
+        con.execute("""
+            DELETE FROM clima_raw
+            WHERE EXISTS (
+                SELECT 1 FROM df
+                WHERE df.municipio = clima_raw.municipio
+                  AND df.data = clima_raw.data
+            )
+        """)
+        con.execute("""
+            INSERT INTO clima_raw
+                (municipio, data, temperature_2m_max, temperature_2m_min,
+                 temperature_2m_mean, precipitation_sum,
+                 relative_humidity_2m_max, relative_humidity_2m_min)
+            SELECT * FROM df
+        """)
+        total = con.execute("SELECT COUNT(*) FROM clima_raw").fetchone()[0]
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    finally:
+        con.close()
 
-    logger.success(f"{len(df)} registros de clima inseridos — total na tabela: {total}")
+    logger.success(f"{len(df)} registros de clima gravados — total na tabela: {total}")
     return len(df)
 
 
-def query(sql: str) -> pd.DataFrame:
+def query(sql: str, params: list | tuple | None = None) -> pd.DataFrame:
     con = get_connection()
-    result = con.execute(sql).df()
-    con.close()
-    return result
+    try:
+        cursor = con.execute(sql, params) if params is not None else con.execute(sql)
+        return cursor.df()
+    finally:
+        con.close()

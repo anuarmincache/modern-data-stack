@@ -1,5 +1,4 @@
 import streamlit as st
-import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import requests
@@ -141,7 +140,7 @@ def fetch_infodengue(geocodigo: int, doenca: str, ano: int) -> pd.DataFrame:
         df["municipio"] = nome[0] if nome else str(geocodigo)
         df["doenca"] = doenca
         return df
-    except:
+    except Exception:
         return pd.DataFrame()
 
 
@@ -200,7 +199,7 @@ def treinar_modelo_cloud(municipio: str, doenca: str):
             df = fetch_infodengue(geocodigo, doenca, ano)
             if not df.empty and "casos_est" in df.columns:
                 dfs.append(df)
-        except:
+        except Exception:
             continue
 
     if not dfs:
@@ -284,10 +283,8 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**📡 Fonte:** InfoDengue (Fiocruz)")
 st.sidebar.markdown("**🗺️ Cobertura:** 31 municípios")
 st.sidebar.markdown("**📅 Período:** 2020–2025")
-st.sidebar.markdown("**⚡ Stack:** Python · dbt · MLflow · FastAPI · Kafka · RAG · LLM")
-st.sidebar.markdown("[📦 GitHub](https://github.com/220719/modern-data-stack)")
-
-from datetime import datetime
+st.sidebar.markdown("**⚡ App publicado:** consulta InfoDengue ao vivo")
+st.sidebar.markdown("[📦 GitHub](https://github.com/anuarmincache/modern-data-stack)")
 
 st.markdown('<div class="main-header">🦟 Observatório Nacional de Arboviroses</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Vigilância epidemiológica de dengue, chikungunya e zika — 31 municípios brasileiros (2020–2025)</div>', unsafe_allow_html=True)
@@ -324,11 +321,12 @@ if not df_atual.empty:
 
     # ── MAPA ─────────────────────────────────────────────
     st.subheader(f"🗺️ Mapa de Alertas — {doenca_sel.capitalize()} {ano_sel}")
-    m = folium.Map(location=[-14.5, -54.0], zoom_start=4, tiles=None)
-    folium.TileLayer(
-        tiles="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png",
-        attr="CartoDB",
-    ).add_to(m)
+    m = folium.Map(
+        location=[-14.5, -54.0],
+        zoom_start=4,
+        tiles="OpenStreetMap",
+        control_scale=True,
+    )
 
     for _, row in df_atual.iterrows():
         municipio = row["municipio"]
@@ -347,7 +345,14 @@ if not df_atual.empty:
             tooltip=f"{municipio} — {LABELS_NIVEL[nivel]}",
         ).add_to(m)
 
-    st_folium(m, width=None, height=600, use_container_width=True)
+    st_folium(
+        m,
+        key="mapa_alertas",
+        width=None,
+        height=600,
+        use_container_width=True,
+        returned_objects=[],
+    )
     st.markdown("""
     <div style="display:flex;justify-content:center;gap:2rem;padding:0.8rem;background:#fff8f5;border-radius:8px;font-size:0.9rem;margin-top:0.5rem">
         <span><span style='display:inline-block;width:12px;height:12px;background:#27ae60;border-radius:50%;margin-right:4px'></span><b>Baixo</b></span>
@@ -457,7 +462,7 @@ if not df_hist.empty and "data" in df_hist.columns:
                 data=("data", "first"),
             ).reset_index()
             return df_sem
-        except:
+        except Exception:
             return pd.DataFrame()
 
     df_clima = buscar_clima_municipio(municipio_sel)
@@ -913,18 +918,18 @@ with col_a2:
                 background:#1a5276; color:white; padding:0.4rem 1rem;
                 border-radius:6px; text-decoration:none; font-weight:bold; font-size:0.85rem;
             ">🎓 Lattes</a>
-            <a href="https://github.com/220719" target="_blank" style="
+            <a href="https://github.com/anuarmincache" target="_blank" style="
                 background:#2c3e50; color:white; padding:0.4rem 1rem;
                 border-radius:6px; text-decoration:none; font-weight:bold; font-size:0.85rem;
             ">📦 GitHub</a>
-            <a href="https://github.com/220719/modern-data-stack" target="_blank" style="
+            <a href="https://github.com/anuarmincache/modern-data-stack" target="_blank" style="
                 background:#e67e22; color:white; padding:0.4rem 1rem;
                 border-radius:6px; text-decoration:none; font-weight:bold; font-size:0.85rem;
             ">🦟 Repositório</a>
         </div>
     """, unsafe_allow_html=True)
 
-st.markdown(f"""
+st.markdown("""
 <div style="text-align:center; margin-bottom:1rem;">
     <span style="background:#27ae60;color:white;padding:0.4rem 1.2rem;border-radius:20px;font-size:0.85rem;font-weight:600">
         📍 Em operação desde 18 de maio de 2026 às 23h17 — Maringá, Paraná
@@ -932,4 +937,4 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.caption("Dados: InfoDengue (Fiocruz) | Stack: Python · dbt · MLflow · FastAPI · Streamlit · Docker · Airflow · Kafka · RAG · LLM")
+st.caption("Dados ao vivo: InfoDengue (Fiocruz) e Open-Meteo. Este app não usa o DuckDB local.")

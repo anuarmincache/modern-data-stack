@@ -2,15 +2,15 @@ import json
 from datetime import datetime
 from kafka import KafkaProducer
 from loguru import logger
+from src.config import settings
 from src.storage.database import query
 
-KAFKA_BROKER = "localhost:9092"
 TOPIC_ALERTAS = "arboviroses-alertas"
 
 
 def get_producer():
     return KafkaProducer(
-        bootstrap_servers=KAFKA_BROKER,
+        bootstrap_servers=settings.kafka_bootstrap_servers,
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
         key_serializer=lambda k: k.encode("utf-8"),
     )

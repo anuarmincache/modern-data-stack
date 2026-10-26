@@ -2,7 +2,6 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
 import folium
 from streamlit_folium import st_folium
 from src.storage.database import query
@@ -63,37 +62,46 @@ def carregar_ultimo_alerta():
 
 @st.cache_data(ttl=300)
 def carregar_historico(municipio, doenca):
-    return query(f"""
+    return query(
+        """
         SELECT ano, semana, semana_epidemiologica, data_inicio_se,
                casos_estimados, nivel_alerta, media_movel_4s,
                temp_min_lag2, precipitacao_lag2
         FROM mart_arboviroses
-        WHERE municipio = '{municipio}' AND doenca = '{doenca}'
+        WHERE municipio = ? AND doenca = ?
         ORDER BY semana_epidemiologica
-    """)
+        """,
+        [municipio, doenca],
+    )
 
 
 @st.cache_data(ttl=300)
 def carregar_ranking(doenca, ano):
-    return query(f"""
+    return query(
+        """
         SELECT municipio,
                SUM(casos_estimados) as total_casos,
                ROUND(AVG(casos_estimados), 1) as media_semanal,
                MAX(nivel_alerta) as nivel_max
         FROM mart_arboviroses
-        WHERE doenca = '{doenca}' AND ano = {ano}
+        WHERE doenca = ? AND ano = ?
         GROUP BY municipio ORDER BY total_casos DESC
-    """)
+        """,
+        [doenca, int(ano)],
+    )
 
 
 @st.cache_data(ttl=300)
 def carregar_comparativo(municipio):
-    return query(f"""
+    return query(
+        """
         SELECT doenca, ano, SUM(casos_estimados) as total
         FROM mart_arboviroses
-        WHERE municipio = '{municipio}'
+        WHERE municipio = ?
         GROUP BY doenca, ano ORDER BY ano
-    """)
+        """,
+        [municipio],
+    )
 
 
 # ── SIDEBAR ──────────────────────────────────────────────
@@ -171,19 +179,9 @@ brasil_geojson = carregar_geojson_brasil()
 m = folium.Map(
     location=[-14.5, -54.0],
     zoom_start=4,
-    tiles=None,
-    min_zoom=4,
-    max_zoom=7,
-    max_bounds=True,
+    tiles="OpenStreetMap",
+    control_scale=True,
 )
-
-# Fundo neutro
-folium.TileLayer(
-    tiles="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-    attr="CartoDB",
-    name="Light",
-    opacity=0.4,
-).add_to(m)
 
 # Destaque do Brasil em laranja claro
 folium.GeoJson(
@@ -193,13 +191,13 @@ folium.GeoJson(
         "fillColor": "#fdebd0",
         "color":     "#d35400",
         "weight":    1.5,
-        "fillOpacity": 0.85,
+        "fillOpacity": 0.15,
     },
     highlight_function=lambda x: {
         "fillColor": "#f5cba7",
         "color":     "#a04000",
         "weight":    2,
-        "fillOpacity": 0.95,
+        "fillOpacity": 0.28,
     },
 ).add_to(m)
 
@@ -248,7 +246,14 @@ for _, row in df_doenca.iterrows():
         ),
     ).add_to(m)
 
-st_folium(m, width=None, height=650, use_container_width=True)
+st_folium(
+    m,
+    key="mapa_alertas",
+    width=None,
+    height=650,
+    use_container_width=True,
+    returned_objects=[],
+)
 
 # Legenda visual
 st.markdown("""

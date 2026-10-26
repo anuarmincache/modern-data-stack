@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
+from src.config import settings
+from src.ingestion.infodengue import DOENCAS, MUNICIPIOS
 from src.storage.database import query
-from src.ingestion.infodengue import MUNICIPIOS, DOENCAS
 
 app = FastAPI(
     title="Arboviroses Brasil API",
@@ -10,9 +10,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_origens = [origem.strip() for origem in settings.cors_origins.split(",") if origem.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origens or ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -34,13 +35,18 @@ def listar_doencas():
 
 
 @app.get("/historico/{municipio}/{doenca}")
-def historico(municipio: str, doenca: str, limit: int = 104):
+def historico(
+    municipio: str,
+    doenca: str,
+    limit: int = Query(default=104, ge=1, le=520),
+):
     if municipio not in MUNICIPIOS:
         raise HTTPException(status_code=404, detail=f"Município '{municipio}' não encontrado")
     if doenca not in DOENCAS:
         raise HTTPException(status_code=404, detail=f"Doença '{doenca}' não encontrada")
 
-    df = query(f"""
+    df = query(
+        """
         SELECT
             ano,
             semana,
@@ -51,22 +57,25 @@ def historico(municipio: str, doenca: str, limit: int = 104):
             nivel_alerta,
             media_movel_4s
         FROM mart_arboviroses
-        WHERE municipio = '{municipio}'
-          AND doenca    = '{doenca}'
+        WHERE municipio = ?
+          AND doenca = ?
         ORDER BY semana_epidemiologica DESC
-        LIMIT {limit}
-    """)
+        LIMIT ?
+        """,
+        [municipio, doenca, limit],
+    )
 
     return {
         "municipio": municipio,
-        "doenca":    doenca,
+        "doenca": doenca,
         "registros": df.to_dict(orient="records"),
     }
 
 
 @app.get("/alertas")
-def alertas(nivel_minimo: int = 3):
-    df = query(f"""
+def alertas(nivel_minimo: int = Query(default=3, ge=1, le=4)):
+    df = query(
+        """
         SELECT
             municipio,
             doenca,
@@ -75,15 +84,17 @@ def alertas(nivel_minimo: int = 3):
             casos_estimados,
             nivel_alerta
         FROM mart_arboviroses
-        WHERE nivel_alerta >= {nivel_minimo}
+        WHERE nivel_alerta >= ?
         ORDER BY semana_epidemiologica DESC, nivel_alerta DESC
         LIMIT 50
-    """)
+        """,
+        [nivel_minimo],
+    )
 
     return {
         "nivel_minimo": nivel_minimo,
-        "total":        len(df),
-        "alertas":      df.to_dict(orient="records"),
+        "total": len(df),
+        "alertas": df.to_dict(orient="records"),
     }
 
 
@@ -105,25 +116,31 @@ def resumo():
 
 
 @app.get("/ranking/{doenca}")
-def ranking(doenca: str, ano: int = 2025):
+def ranking(
+    doenca: str,
+    ano: int = Query(default=2025, ge=2015, le=2100),
+):
     if doenca not in DOENCAS:
         raise HTTPException(status_code=404, detail=f"Doença '{doenca}' não encontrada")
 
-    df = query(f"""
+    df = query(
+        """
         SELECT
             municipio,
             ROUND(AVG(casos_estimados), 1) as media_semanal,
             SUM(casos_estimados)           as total_casos,
             MAX(nivel_alerta)              as nivel_max
         FROM mart_arboviroses
-        WHERE doenca = '{doenca}'
-          AND ano    = {ano}
+        WHERE doenca = ?
+          AND ano = ?
         GROUP BY municipio
         ORDER BY total_casos DESC
-    """)
+        """,
+        [doenca, ano],
+    )
 
     return {
         "doenca": doenca,
-        "ano":    ano,
+        "ano": ano,
         "ranking": df.to_dict(orient="records"),
     }

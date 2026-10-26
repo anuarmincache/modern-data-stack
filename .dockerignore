@@ -1,0 +1,14 @@
+.git
+.venv
+venv
+.pytest_cache
+.ruff_cache
+data
+mlruns
+mlartifacts
+logs
+**/__pycache__
+**/*.pyc
+.env
+*.duckdb
+*.db

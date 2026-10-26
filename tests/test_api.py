@@ -57,6 +57,14 @@ def test_historico_valido(mock_query):
     assert data["municipio"] == "Maringá"
     assert data["doenca"] == "dengue"
     assert len(data["registros"]) <= 10
+    sql, params = mock_query.call_args.args
+    assert "Maringá" not in sql
+    assert params == ["Maringá", "dengue", 10]
+
+
+def test_historico_limit_invalido():
+    response = client.get("/historico/Maringá/dengue?limit=0")
+    assert response.status_code == 422
 
 
 def test_historico_municipio_invalido():
@@ -80,6 +88,13 @@ def test_alertas(mock_query):
     data = response.json()
     assert "alertas" in data
     assert "total" in data
+    _, params = mock_query.call_args.args
+    assert params == [3]
+
+
+def test_alertas_nivel_invalido():
+    response = client.get("/alertas?nivel_minimo=9")
+    assert response.status_code == 422
 
 
 @patch("src.api.main.query")

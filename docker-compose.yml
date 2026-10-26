@@ -1,3 +1,8 @@
+# Laboratório local.
+# API e dashboard leem ./data. MinIO sobe, mas o código da aplicação não grava nele.
+# A imagem oficial do Airflow não instala as dependências deste repositório:
+# a interface abre; as tasks falham até essa imagem ser estendida.
+
 services:
 
   fastapi:
@@ -9,13 +14,17 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./mlruns:/app/mlruns
     environment:
       - DUCKDB_PATH=/app/data/processed/arboviroses.duckdb
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-    depends_on:
-      - mlflow
+      - CORS_ORIGINS=*
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   streamlit:
     build:
@@ -26,26 +35,30 @@ services:
       - "8501:8501"
     volumes:
       - ./data:/app/data
-      - ./mlruns:/app/mlruns
     environment:
       - DUCKDB_PATH=/app/data/processed/arboviroses.duckdb
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-    depends_on:
-      - fastapi
     restart: unless-stopped
 
   mlflow:
-    image: python:3.12-slim
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.mlflow
     container_name: arboviroses-mlflow
     ports:
       - "5000:5000"
     volumes:
       - ./mlruns:/mlruns
-    command: bash -c "pip install mlflow -q && mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlruns/mlflow.db --default-artifact-root /mlruns"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: arboviroses-minio
     ports:
       - "9000:9000"
@@ -65,15 +78,24 @@ services:
       - "8080:8080"
     volumes:
       - ./infra/airflow/dags:/opt/airflow/dags
+      - ./infra/dbt:/opt/airflow/infra/dbt
       - ./data:/opt/airflow/data
       - ./src:/opt/airflow/src
     environment:
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__WEBSERVER__SECRET_KEY=arboviroses2025
+      - AIRFLOW__WEBSERVER__SECRET_KEY=dev-only-change-me
+      - PYTHONPATH=/opt/airflow
       - DUCKDB_PATH=/opt/airflow/data/processed/arboviroses.duckdb
-    command: bash -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@arboviroses.br ; airflow webserver & airflow scheduler"
+    command:
+      - bash
+      - -c
+      - |
+        airflow db init
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@localhost || true
+        airflow webserver &
+        exec airflow scheduler
     restart: unless-stopped
 
   zookeeper:
@@ -94,8 +116,13 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     restart: unless-stopped
 

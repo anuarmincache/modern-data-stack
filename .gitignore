@@ -44,6 +44,18 @@ Thumbs.db
 # MLflow
 mlruns/
 mlartifacts/
+mlflow.db
 
 # MinIO
 minio_data/
+
+# Testes, lint e índices locais
+.pytest_cache/
+.ruff_cache/
+logs/
+data/chroma/
+
+# dbt
+infra/dbt/target/
+infra/dbt/dbt_packages/
+infra/dbt/logs/

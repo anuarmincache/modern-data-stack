@@ -1,9 +1,5 @@
 import pytest
-import duckdb
-from unittest.mock import patch
-from pathlib import Path
 from src.storage.database import (
-    get_connection,
     inicializar_banco,
     inserir_casos,
     inserir_clima,
@@ -68,6 +64,32 @@ def test_inserir_clima():
     df = query("SELECT * FROM clima_raw")
     assert len(df) == 1
     assert df["municipio"][0] == "Maringá"
+
+
+def test_inserir_casos_idempotente():
+    inserir_casos(CASOS_MOCK)
+    atualizado = {**CASOS_MOCK[0], "casos_est": 140.0}
+    n = inserir_casos([atualizado])
+    assert n == 1
+    df = query("SELECT * FROM casos_raw")
+    assert len(df) == 1
+    assert df["casos_est"][0] == 140.0
+
+
+def test_inserir_clima_idempotente():
+    inserir_clima(CLIMA_MOCK)
+    inserir_clima(CLIMA_MOCK)
+    df = query("SELECT * FROM clima_raw")
+    assert len(df) == 1
+
+
+def test_query_com_parametros():
+    inserir_casos(CASOS_MOCK)
+    df = query(
+        "SELECT municipio FROM casos_raw WHERE municipio = ? AND doenca = ?",
+        ["Maringá", "dengue"],
+    )
+    assert len(df) == 1
 
 
 def test_inserir_casos_vazio():

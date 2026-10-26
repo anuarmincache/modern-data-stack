@@ -39,7 +39,7 @@ with DAG(
     dag_id="dag_ml_semanal",
     description="Retrain semanal dos modelos ML + detecção de alertas",
     default_args=default_args,
-    schedule_interval="0 8 * * 1",
+    schedule="0 8 * * 1",
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=["arboviroses", "ml"],

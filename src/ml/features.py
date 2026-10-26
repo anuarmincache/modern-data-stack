@@ -1,11 +1,11 @@
 import pandas as pd
-import numpy as np
 from loguru import logger
 from src.storage.database import query
 
 
 def carregar_features(municipio: str, doenca: str) -> pd.DataFrame:
-    sql = f"""
+    df = query(
+        """
         SELECT
             ano,
             semana,
@@ -20,12 +20,13 @@ def carregar_features(municipio: str, doenca: str) -> pd.DataFrame:
             media_movel_4s,
             nivel_alerta
         FROM mart_arboviroses
-        WHERE municipio = '{municipio}'
-          AND doenca    = '{doenca}'
+        WHERE municipio = ?
+          AND doenca = ?
           AND casos_lag4 IS NOT NULL
         ORDER BY semana_epidemiologica
-    """
-    df = query(sql)
+        """,
+        [municipio, doenca],
+    )
     logger.info(f"{municipio}/{doenca}: {len(df)} semanas carregadas")
     return df
 

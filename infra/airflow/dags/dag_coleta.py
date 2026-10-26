@@ -46,7 +46,7 @@ with DAG(
     dag_id="dag_coleta_semanal",
     description="Coleta semanal de casos e clima + transformações dbt",
     default_args=default_args,
-    schedule_interval="0 6 * * 1",
+    schedule="0 6 * * 1",
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=["arboviroses", "ingestão"],
