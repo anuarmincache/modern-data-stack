@@ -17,6 +17,7 @@ venv/
 # Environment variables
 .env
 *.env
+.streamlit/secrets.toml
 
 # Data
 data/raw/
